@@ -5,7 +5,14 @@ const desktopMessage = document.getElementById('desktopMessage');
 const historyList = document.getElementById('historyList');
 const modal = document.getElementById('modal');
 const modalContent = document.getElementById('modalContent');
+const confirmModal = document.getElementById('confirmModal');
+const warning = document.getElementById('warning');
+const exchangeBtn = document.getElementById('exchangeBtn');
+const saleBtn = document.getElementById('saleBtn');
 let historyData = JSON.parse(localStorage.getItem('historyData')) || [];
+const maxChars = 350;
+const lockDuration = 15; // 15 секунд блокировки
+let currentSectionId = null;
 
 function isMobileDevice() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
@@ -39,6 +46,19 @@ function createStars() {
 screens.forEach(section => {
     const inputs = section.querySelectorAll('.input-field');
     const submitBtn = section.querySelector('.submit-btn');
+    const largeTextarea = section.querySelector('.input-field.large');
+    const charCounter = section.querySelector('.char-counter');
+
+    if (largeTextarea && charCounter) {
+        largeTextarea.addEventListener('input', () => {
+            const currentLength = largeTextarea.value.length;
+            charCounter.textContent = `${currentLength}/${maxChars}`;
+            if (currentLength >= maxChars) {
+                showWarning();
+            }
+        });
+    }
+
     if (inputs.length && submitBtn) {
         inputs.forEach(input => {
             input.addEventListener('input', () => {
@@ -65,6 +85,8 @@ function backToMain() {
     currentScreen.querySelectorAll('.input-field').forEach(input => {
         input.style.display = 'block';
         input.value = '';
+        const charCounter = currentScreen.querySelector('.char-counter');
+        if (charCounter) charCounter.textContent = `0/${maxChars}`;
     });
     const submitBtn = currentScreen.querySelector('.submit-btn');
     if (submitBtn) {
@@ -72,6 +94,23 @@ function backToMain() {
         submitBtn.classList.remove('active');
     }
     setTimeout(() => document.getElementById('main-screen').classList.add('active'), 600);
+}
+
+function confirmSubmit(sectionId) {
+    currentSectionId = sectionId;
+    confirmModal.classList.add('active');
+}
+
+function proceedSubmit() {
+    if (currentSectionId) {
+        submitForm(currentSectionId);
+        closeConfirmModal();
+    }
+}
+
+function closeConfirmModal() {
+    confirmModal.classList.remove('active');
+    currentSectionId = null;
 }
 
 function submitForm(sectionId) {
@@ -94,7 +133,10 @@ function submitForm(sectionId) {
         localStorage.setItem('historyData', JSON.stringify(historyData));
         inputs.forEach(input => input.style.display = 'none');
         formSection.querySelector('.submit-btn').style.display = 'none';
+        const charCounter = formSection.querySelector('.char-counter');
+        if (charCounter) charCounter.style.display = 'none';
         setTimeout(() => formSection.querySelector('.success-msg').classList.add('active'), 50);
+        lockButtons();
     }
 }
 
@@ -125,3 +167,39 @@ function closeModal() {
     modal.classList.remove('active');
 }
 
+function showWarning() {
+    warning.classList.add('active');
+    setTimeout(() => {
+        warning.classList.remove('active');
+    }, 5000);
+}
+
+function lockButtons() {
+    const buttons = [exchangeBtn, saleBtn];
+    buttons.forEach(btn => {
+        btn.classList.add('disabled');
+        btn.disabled = true;
+    });
+
+    let timeLeft = lockDuration;
+    buttons.forEach(btn => {
+        const timer = btn.querySelector('.timer');
+        timer.textContent = timeLeft;
+    });
+
+    const countdown = setInterval(() => {
+        timeLeft--;
+        buttons.forEach(btn => {
+            const timer = btn.querySelector('.timer');
+            timer.textContent = timeLeft;
+        });
+
+        if (timeLeft <= 0) {
+            clearInterval(countdown);
+            buttons.forEach(btn => {
+                btn.classList.remove('disabled');
+                btn.disabled = false;
+            });
+        }
+    }, 1000);
+}
