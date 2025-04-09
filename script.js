@@ -268,34 +268,47 @@ function closeConfirmModal() {
 }
 
 // Отправка формы
-function submitForm(sectionId) {
+async function submitForm(sectionId) {
     const section = document.getElementById(sectionId);
     const inputs = section.querySelectorAll('.input-field');
-    if ([...inputs].every(input => input.value.trim())) {
-        const timestamp = new Date().toLocaleString('uk-UA', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        const data = {
-            type: sectionId === 'exchange' ? 'Обмін' : 'Продаж',
-            timestamp,
-            timestampRaw: new Date(),
-            details: Array.from(inputs).map(input => input.value.trim())
-        };
-        historyData.push(data);
-        filteredHistoryData = [...historyData];
-        localStorage.setItem('historyData', JSON.stringify(historyData));
+    
+    if (![...inputs].every(input => input.value.trim())) {
+      return;
+    }
+  
+    try {
+      const user = TelegramWebApp.initDataUnsafe.user;
+      const formData = {
+        user: {
+          id: user.id,
+          first_name: user.first_name,
+          last_name: user.last_name
+        },
+        type: sectionId === 'exchange' ? 'exchange' : 'sale',
+        offer: inputs[0].value.trim(),
+        want: sectionId === 'exchange' ? inputs[1].value.trim() : 'Продаж',
+        partner: inputs[sectionId === 'exchange' ? 2 : 1].value.trim()
+      };
+  
+      const response = await fetch('https://garant-service-bot.onrender.com/submit-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+  
+      if (response.ok) {
         inputs.forEach(input => input.style.display = 'none');
         section.querySelector('.submit-btn').style.display = 'none';
-        const charCounter = section.querySelector('.char-counter');
-        if (charCounter) charCounter.style.display = 'none';
-        setTimeout(() => section.querySelector('.success-msg').classList.add('active'), 50);
+        section.querySelector('.success-msg').classList.add('active');
         lockButtons();
+      } else {
+        alert('Помилка при відправці! Спробуйте ще раз.');
+      }
+    } catch (error) {
+      console.error('Помилка:', error);
+      alert('Немає зʼєднання з сервером');
     }
-}
+  }
 
 // Загрузка истории
 function loadHistory() {
