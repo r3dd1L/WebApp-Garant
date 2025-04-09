@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const app = express();
 
 // Конфигурация (эти данные безопасно хранятся в Render)
-const token = process.env.TELEGRAM_TOKEN || '7958895679:AAFLy-2SA0DHGjTVj6xbHlcWwVtmU47_Xy4';
+const token = process.env.TELEGRAM_TOKEN || '7958895679:AAFvxh7voIhlcZuCZP3hiSCYLFMi6P2D_0c';
 const CHANNEL_ID = process.env.CHANNEL_ID || -1002053611638;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://garantService:qi79uWEa9eC96O0a@cluster0.ghgfwuj.mongodb.net/garantService?retryWrites=true&w=majority';
 

@@ -290,7 +290,7 @@ async function submitForm(sectionId) {
         partner: inputs[sectionId === 'exchange' ? 2 : 1].value.trim()
       };
   
-      const response = await fetch('https://garant-service-bot.onrender.com/submit-request', {
+      const response = await fetch('https://webapp-garant.onrender.com/submit-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
