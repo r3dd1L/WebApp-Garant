@@ -14,7 +14,9 @@ const DOM = {
     navButtons: document.querySelectorAll('.nav-btn'),
     filterBtn: document.getElementById('filterBtn'),
     filterMenu: document.getElementById('filterMenu'),
-    filterOptions: document.querySelectorAll('.filter-option')
+    filterOptions: document.querySelectorAll('.filter-option'),
+    userAvatar: document.getElementById('user-avatar'),
+    userName: document.getElementById('user-name')
 };
 
 // Константы
@@ -25,25 +27,72 @@ let historyData = JSON.parse(localStorage.getItem('historyData')) || [];
 let currentSectionId = null;
 let isTransitioning = false; // Флаг для блокировки переключения во время анимации
 let filteredHistoryData = [...historyData]; // Копия для отображения с учётом фильтров
+let TelegramWebApp;
 
 // Проверка на мобильное устройство
 const isMobileDevice = () => /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
     (window.innerWidth <= 1024 && 'ontouchstart' in window);
 
 // Инициализация при загрузке
-window.addEventListener('load', () => {
-    if (!isMobileDevice()) {
-        DOM.mainContainer.style.display = 'none';
-        DOM.desktopMessage.style.display = 'block';
-    } else {
+function initApp() {
+    if (window.Telegram && window.Telegram.WebApp) {
+        TelegramWebApp = window.Telegram.WebApp;
+        TelegramWebApp.expand(); // Раскрываем WebApp на весь экран
+        
+        // Проверяем, открыто ли в Telegram WebApp
+        if (TelegramWebApp.initDataUnsafe && TelegramWebApp.initDataUnsafe.user) {
+            const user = TelegramWebApp.initDataUnsafe.user;
+            setupTelegramUser(user);
+        }
+        
         DOM.desktopMessage.style.display = 'none';
-        setTimeout(() => DOM.preloader.classList.add('hidden'), 3000);
+        setTimeout(() => DOM.preloader.classList.add('hidden'), 1000);
         createStars();
         loadHistory();
         setupEventListeners();
-        updateActiveNavButton('main-screen'); // Устанавливаем активную кнопку при загрузке
+        updateActiveNavButton('main-screen');
+    } else {
+        // Стандартная инициализация, если не в Telegram
+        if (!isMobileDevice()) {
+            DOM.mainContainer.style.display = 'none';
+            DOM.desktopMessage.style.display = 'block';
+        } else {
+            DOM.desktopMessage.style.display = 'none';
+            setTimeout(() => DOM.preloader.classList.add('hidden'), 3000);
+            createStars();
+            loadHistory();
+            setupEventListeners();
+            updateActiveNavButton('main-screen');
+        }
     }
-});
+}
+
+// Настройка данных пользователя Telegram
+function setupTelegramUser(user) {
+    // Устанавливаем имя пользователя
+    if (user.first_name || user.last_name) {
+        const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+        DOM.userName.textContent = fullName;
+    } else if (user.username) {
+        DOM.userName.textContent = `@${user.username}`;
+    } else {
+        DOM.userName.textContent = 'Користувач Telegram';
+    }
+    
+    // Устанавливаем аватар, если есть
+    if (user.photo_url) {
+        DOM.userAvatar.src = user.photo_url;
+    } else {
+        // Заглушка, если аватар не указан
+        DOM.userAvatar.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23bb86fc"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>';
+    }
+    
+    // Добавляем кнопку "Назад" в WebApp
+    if (TelegramWebApp.BackButton) {
+        TelegramWebApp.BackButton.show();
+        TelegramWebApp.BackButton.onClick(backToMain);
+    }
+}
 
 // Создание звездного фона
 function createStars() {
@@ -66,7 +115,7 @@ function setupEventListeners() {
             const sectionId = btn.dataset.section;
             if (!isTransitioning) {
                 switchSection(sectionId);
-                updateActiveNavButton(sectionId); // Обновляем активную кнопку
+                updateActiveNavButton(sectionId);
             }
         });
     });
@@ -76,7 +125,7 @@ function setupEventListeners() {
         const btn = e.target.closest('.btn[data-section]');
         if (btn && !isTransitioning) {
             switchSection(btn.dataset.section);
-            updateActiveNavButton(btn.dataset.section); // Обновляем активную кнопку
+            updateActiveNavButton(btn.dataset.section);
         }
     });
 
@@ -131,7 +180,7 @@ function setupEventListeners() {
         option.addEventListener('click', () => {
             const filterType = option.dataset.filter;
             applyFilter(filterType);
-            DOM.filterMenu.classList.remove('active'); // Закрываем меню после выбора
+            DOM.filterMenu.classList.remove('active');
         });
     });
 
@@ -147,7 +196,7 @@ function setupEventListeners() {
 function switchSection(sectionId) {
     const currentScreen = document.querySelector('.screen.active');
     if (currentScreen) {
-        isTransitioning = true; // Блокируем переключение
+        isTransitioning = true;
         currentScreen.classList.add('leaving');
         currentScreen.classList.remove('active');
         setTimeout(() => {
@@ -155,15 +204,15 @@ function switchSection(sectionId) {
             const newScreen = document.getElementById(sectionId);
             newScreen.classList.add('active');
             if (sectionId === 'history') loadHistory();
-            isTransitioning = false; // Разблокируем переключение после анимации
+            isTransitioning = false;
         }, ANIMATION_DURATION);
     } else {
-        isTransitioning = true; // Блокируем переключение
+        isTransitioning = true;
         const newScreen = document.getElementById(sectionId);
         newScreen.classList.add('active');
         if (sectionId === 'history') loadHistory();
         setTimeout(() => {
-            isTransitioning = false; // Разблокируем переключение после анимации
+            isTransitioning = false;
         }, ANIMATION_DURATION);
     }
 }
@@ -173,13 +222,13 @@ function backToMain() {
     const currentScreen = document.querySelector('.screen.active');
     if (!currentScreen) return;
 
-    isTransitioning = true; // Блокируем переключение
+    isTransitioning = true;
     currentScreen.classList.add('leaving');
     currentScreen.classList.remove('active');
     setTimeout(() => {
         currentScreen.classList.remove('leaving');
         document.getElementById('main-screen').classList.add('active');
-        updateActiveNavButton('main-screen'); // Обновляем активную кнопку
+        updateActiveNavButton('main-screen');
         const successMsg = currentScreen.querySelector('.success-msg');
         if (successMsg) successMsg.classList.remove('active');
 
@@ -196,7 +245,7 @@ function backToMain() {
 
         const charCounter = currentScreen.querySelector('.char-counter');
         if (charCounter) charCounter.textContent = `0/${MAX_CHARS}`;
-        isTransitioning = false; // Разблокируем переключение после анимации
+        isTransitioning = false;
     }, ANIMATION_DURATION);
 }
 
@@ -233,11 +282,11 @@ function submitForm(sectionId) {
         const data = {
             type: sectionId === 'exchange' ? 'Обмін' : 'Продаж',
             timestamp,
-            timestampRaw: new Date(), // Для сортировки по дате
+            timestampRaw: new Date(),
             details: Array.from(inputs).map(input => input.value.trim())
         };
         historyData.push(data);
-        filteredHistoryData = [...historyData]; // Обновляем отфильтрованную копию
+        filteredHistoryData = [...historyData];
         localStorage.setItem('historyData', JSON.stringify(historyData));
         inputs.forEach(input => input.style.display = 'none');
         section.querySelector('.submit-btn').style.display = 'none';
@@ -262,24 +311,19 @@ function loadHistory() {
 
 // Применение фильтра
 function applyFilter(filterType) {
-    // Сбрасываем отфильтрованные данные до исходного порядка
     filteredHistoryData = [...historyData];
 
     if (filterType === 'date-asc') {
-        // Сортировка по дате (с более ранней к поздней)
         filteredHistoryData.sort((a, b) => new Date(a.timestampRaw) - new Date(b.timestampRaw));
     } else if (filterType === 'date-desc') {
-        // Сортировка по дате (с более поздней к ранней)
         filteredHistoryData.sort((a, b) => new Date(b.timestampRaw) - new Date(a.timestampRaw));
     } else if (filterType === 'exchange') {
-        // Фильтрация только "Обмін"
         filteredHistoryData = filteredHistoryData.filter(item => item.type === 'Обмін');
     } else if (filterType === 'sale') {
-        // Фильтрация только "Продаж"
         filteredHistoryData = filteredHistoryData.filter(item => item.type === 'Продаж');
     }
 
-    loadHistory(); // Перерисовываем список с учётом фильтра
+    loadHistory();
 }
 
 // Показать детали истории
@@ -335,3 +379,6 @@ function updateActiveNavButton(sectionId) {
         }
     });
 }
+
+// Инициализация приложения
+window.addEventListener('load', initApp);
